@@ -334,7 +334,8 @@
         <div class="footer-links">
             <a href="#about" data-key="ft_about">من نحن</a>
             <a href="#" onclick="document.getElementById('privacy-modal').style.display='flex'" data-key="ft_privacy">سياسة الخصوصية</a>
-            <a href="#contact" data-key="ft_location">موقعنا</a>
+            <!-- Footer Location Link - ID added -->
+            <a href="#" id="footer-map-link" target="_blank" data-key="ft_location">موقعنا</a>
         </div>
         <p>AFMAP &copy; 2026. All Rights Reserved.</p>
     </footer>
@@ -524,7 +525,21 @@
             
             const locName = getLangText(data, 'location') || "Rouiba, Alger";
             const mapLink = data.map_link || "#";
+            
+            // 1. Update Contact Section Location Link
             document.getElementById('contact-loc').innerHTML = `<a href="${mapLink}" target="_blank" style="color:white; text-decoration:underline;">${locName}</a>`;
+
+            // 2. Update Footer Location Link
+            const footerMapLink = document.getElementById('footer-map-link');
+            if(footerMapLink) {
+                footerMapLink.href = mapLink;
+            }
+
+            // 3. Update Map Overlay Link
+            const mapOverlay = document.querySelector('.map-overlay-link');
+            if(mapOverlay) {
+                mapOverlay.href = mapLink || "https://maps.app.goo.gl/u9xd6otpYqUodWgp9";
+            }
 
             const socialBox = document.getElementById('social-display');
             socialBox.innerHTML = '';
@@ -532,15 +547,6 @@
             if(data.insta_link) socialBox.innerHTML += `<a href="${data.insta_link}" target="_blank" class="social-btn insta"><i class="fab fa-instagram"></i></a>`;
             if(data.x_link) socialBox.innerHTML += `<a href="${data.x_link}" target="_blank" class="social-btn x"><i class="fab fa-x-twitter"></i></a>`;
             if(data.tiktok_link) socialBox.innerHTML += `<a href="${data.tiktok_link}" target="_blank" class="social-btn tiktok"><i class="fab fa-tiktok"></i></a>`;
-            
-            // Map Link Update (If Admin changes it, we can update the href of the overlay)
-            const mapOverlay = document.querySelector('.map-overlay-link');
-            if(mapLink && mapOverlay) {
-                mapOverlay.href = mapLink;
-            } else if (mapOverlay) {
-                // Default specific link requested
-                mapOverlay.href = "https://maps.app.goo.gl/u9xd6otpYqUodWgp9";
-            }
         }
 
         function renderListUI(colName, items) {
@@ -931,13 +937,15 @@
                     desc_ar: d_ar, desc_fr: d_fr, desc_en: d_en
                 };
                 
+                // Keep image if not updating, or update new image
                 if (imgUrl) obj.img = imgUrl; 
                 else if (editId) {
+                    // Find existing image if editing and no new file
                     const existing = window.tempAdminData.find(i => i.id === editId);
                     if(existing) obj.img = existing.img;
                 }
 
-                if (!editId) obj.order = Date.now(); 
+                if (!editId) obj.order = Date.now(); // New items get order
 
                 if (colName === 'stats') {
                     obj.num = t_ar; obj.text = d_ar; obj.icon = 'fa-star';
