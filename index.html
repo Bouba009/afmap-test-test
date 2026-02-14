@@ -154,6 +154,25 @@
         .social-btn.x:hover { background: #000; border: 1px solid #333; }
         .social-btn.tiktok:hover { background: #000; border: 1px solid #333; text-shadow: 2px 2px #ff0050; }
 
+        /* Map Box Style */
+        .map-box {
+            width: 100%;
+            max-width: 600px;
+            margin: 20px auto;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            position: relative;
+            border: 2px solid white;
+        }
+        .map-box iframe { width: 100%; height: 250px; border: 0; display: block; }
+        .map-overlay-link {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0); /* Transparent */
+            z-index: 10;
+            cursor: pointer;
+        }
+
         /* --- Admin Styles --- */
         .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; display: none; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(5px); }
         .privacy-content { background: white; width: 100%; max-width: 600px; padding: 30px; border-radius: 10px; max-height: 80vh; overflow-y: auto; text-align: start; }
@@ -296,6 +315,14 @@
             <p style="margin-top:10px;"><i class="fas fa-map-marker-alt"></i> <span id="contact-loc"></span></p>
         </div>
         
+        <!-- Interactive Map (Clickable to open specific link) -->
+        <div class="map-box">
+            <!-- Visual Map (Generic Search) -->
+            <iframe src="https://maps.google.com/maps?q=36.721495,3.167812&z=14&output=embed" loading="lazy"></iframe>
+            <!-- The Overlay Link (The Specific Position requested) -->
+            <a href="https://maps.app.goo.gl/u9xd6otpYqUodWgp9" target="_blank" class="map-overlay-link" title="Open in Google Maps"></a>
+        </div>
+
         <!-- Social Media Icons (Footer) -->
         <div class="social-icons" id="social-display">
             <!-- Icons injected here -->
@@ -505,6 +532,15 @@
             if(data.insta_link) socialBox.innerHTML += `<a href="${data.insta_link}" target="_blank" class="social-btn insta"><i class="fab fa-instagram"></i></a>`;
             if(data.x_link) socialBox.innerHTML += `<a href="${data.x_link}" target="_blank" class="social-btn x"><i class="fab fa-x-twitter"></i></a>`;
             if(data.tiktok_link) socialBox.innerHTML += `<a href="${data.tiktok_link}" target="_blank" class="social-btn tiktok"><i class="fab fa-tiktok"></i></a>`;
+            
+            // Map Link Update (If Admin changes it, we can update the href of the overlay)
+            const mapOverlay = document.querySelector('.map-overlay-link');
+            if(mapLink && mapOverlay) {
+                mapOverlay.href = mapLink;
+            } else if (mapOverlay) {
+                // Default specific link requested
+                mapOverlay.href = "https://maps.app.goo.gl/u9xd6otpYqUodWgp9";
+            }
         }
 
         function renderListUI(colName, items) {
@@ -513,15 +549,10 @@
             container.innerHTML = '';
             
             items.forEach(item => {
-                // For stats, we use Title as Num, and Desc as Text
-                // For others, Title is Title, Desc is Desc.
-                
                 let title, desc;
-                
                 if (colName === 'stats') {
-                    // Assuming 'title_ar' holds the number, and 'desc_ar' holds the text
-                    title = getLangText(item, 'title'); // This will be the Number
-                    desc = getLangText(item, 'desc');   // This will be the Text Label
+                    title = getLangText(item, 'title') || item.num; 
+                    desc = getLangText(item, 'desc') || item.text;   
                 } else if (colName === 'founders') {
                     title = getLangText(item, 'name');
                     desc = getLangText(item, 'role');
@@ -663,7 +694,7 @@
                             <div><span class="lang-label">Localisation (FR)</span><input id="in-loc-fr" class="admin-input" value="${data.location_fr || ''}"></div>
                             <div><span class="lang-label">Location (EN)</span><input id="in-loc-en" class="admin-input" value="${data.location_en || ''}"></div>
                         </div>
-                        <label>رابط الخريطة (Google Maps)</label><input id="in-map-link" class="admin-input" value="${data.map_link || ''}">
+                        <label>رابط الخريطة (Google Maps)</label><input id="in-map-link" class="admin-input" value="${data.map_link || ''}" placeholder="If left empty, default map is used">
 
                         <div class="lang-group">
                             <div><label>Facebook Link</label><input id="in-fb" class="admin-input" value="${data.fb_link || ''}"></div>
@@ -686,7 +717,6 @@
             }
         }
 
-        // --- Logo Upload Fix ---
         window.uploadLogo = function() {
             const file = document.getElementById('logo-file').files[0];
             if (!file) return alert("الرجاء اختيار صورة أولاً");
@@ -699,21 +729,21 @@
             reader.onload = async function(e) {
                 try {
                     const base64 = e.target.result;
-                    // Write to Firebase
+                    // 1. Update Firebase
                     await setDoc(doc(db, "site_content", "settings"), { logo: base64 }, { merge: true });
-                    
-                    // Update Local Cache
+
+                    // 2. Update Local Cache
                     const current = JSON.parse(localStorage.getItem('afmap_settings')) || {};
                     current.logo = base64;
                     localStorage.setItem('afmap_settings', JSON.stringify(current));
-                    
-                    // Update Header
+
+                    // 3. Update UI
                     renderHeader(current);
-                    
+
                     alert("تم تحديث اللوجو بنجاح!");
                 } catch (error) {
-                    console.error("Error saving logo:", error);
-                    alert("حدث خطأ أثناء الحفظ: " + error.message);
+                    console.error("Logo Upload Error:", error);
+                    alert("حدث خطأ أثناء رفع اللوجو. قد تكون الصورة كبيرة جداً.");
                 }
             };
             reader.readAsDataURL(file);
@@ -750,7 +780,7 @@
                 
                 await setDoc(doc(db, "site_content", "settings"), newData, { merge: true });
                 
-                // Update Local Cache
+                // Local Update
                 const current = JSON.parse(localStorage.getItem('afmap_settings')) || {};
                 const merged = { ...current, ...newData };
                 localStorage.setItem('afmap_settings', JSON.stringify(merged));
@@ -863,7 +893,6 @@
             
             // Populate Fields
             document.getElementById('edit-mode-id').value = item.id;
-            // Handle Stats special case (num/text) vs others (title/desc)
             if (colName === 'stats') {
                 document.getElementById('new-t-ar').value = item.title_ar || item.num || "";
                 document.getElementById('new-d-ar').value = item.desc_ar || item.text || "";
@@ -902,7 +931,6 @@
                     desc_ar: d_ar, desc_fr: d_fr, desc_en: d_en
                 };
                 
-                // Keep image if not updating, or update new image
                 if (imgUrl) obj.img = imgUrl; 
                 else if (editId) {
                     const existing = window.tempAdminData.find(i => i.id === editId);
@@ -912,7 +940,6 @@
                 if (!editId) obj.order = Date.now(); 
 
                 if (colName === 'stats') {
-                    // For legacy support, also set num/text
                     obj.num = t_ar; obj.text = d_ar; obj.icon = 'fa-star';
                 }
                 if (colName === 'founders') {
